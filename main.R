@@ -1,10 +1,18 @@
+#Codigo hecho por
+#Alexis Salazar
+#Víctor Rubilar
+
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("stringr")
+
 library(dplyr)
 library(ggplot2)
 library(stringr)
 
 
 
-
+#archivo = read.csv("~/Mineria_de_Datos/Mineria-Eva-4/archivo_limpio.csv")
 archivo = read.csv("archivo_limpio.csv")
 
 View(archivo)
@@ -169,4 +177,87 @@ ggplot(top_10_productos, aes(x = n_producto, y = reorder(Producto, n_producto)))
     y = "PRODUCTO"
   )
 
+#Región vs Región | Coquimbo vs Arica y Parinacota
+rgvsrg <- archivo %>%
+  filter(Region == "Región de Coquimbo" | Region == "Región de Arica y Parinacota") %>%
+  group_by(Region, Producto) %>%
+  summarise(
+    total_ventas = n(),
+    precio_promedio = mean(Precio_promedio, na.rm = TRUE),
+    volumen_total = sum(Volumen, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  arrange(Region, desc(total_ventas)) %>%
+  group_by(Region) %>%
+  slice_head(n = 10) %>%
+  ungroup()
 
+View(rgvsrg)
+
+ggplot(rgvsrg, aes(x = total_ventas, y = reorder(Producto, total_ventas), fill = Region)) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = scales::comma(total_ventas)), 
+            hjust = -0.1, size = 3.5, color = "black") +
+  facet_wrap(~ Region, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Top 10 Productos: Arica vs Coquimbo",
+    x = "Número de Transacciones",
+    y = "Producto",
+    fill = "Región"
+  ) +
+  scale_fill_manual(values = c("Región de Coquimbo" = "#1E90FF", "Región de Arica y Parinacota" = "#2E8B57")) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",  
+    panel.grid.major.y = element_blank(),
+    strip.text = element_text(face = "bold", size = 11)  
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) 
+
+
+#Estacionalidad por año
+
+ev_annio <- archivo %>%
+  filter(Region == "Región de Coquimbo" | Region == "Región de Arica y Parinacota") %>%
+  group_by(Region, Annio) %>%
+  summarise(
+    transacciones = n(),
+    volumen_total = sum(Volumen, na.rm = TRUE),
+    precio_promedio = mean(Precio_promedio, na.rm = TRUE),
+    productos_unicos = n_distinct(Producto),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    Annio = as.factor(Annio),
+    Region_simple = ifelse(Region == "Región de Arica y Parinacota", "Arica", "Coquimbo")
+  )
+
+ggplot(ev_annio, aes(x = Annio, y = volumen_total, group = Region_simple, color = Region_simple)) +
+  geom_line(size = 1.5) +
+  geom_point(size = 4) +
+  geom_text(aes(label = scales::comma(round(volumen_total/1000, 1))),
+            vjust = -1, size = 3, fontface = "bold") +
+  labs(
+    title = "Evolución Anual del Volumen de Transacciones por Región",
+    subtitle = "Región de Arica y Parinacota vs Región de Coquimbo",
+    x = "Año",
+    y = "Volumen Total",
+    color = "Región",
+    caption = "Valores en miles"
+  ) +
+  scale_color_manual(
+    values = c("Arica" = "#2E8B57", "Coquimbo" = "#1E90FF"),
+    labels = c("Arica y Parinacota", "Coquimbo")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "gray40", size = 10),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold")
+  ) +
+  scale_y_continuous(labels = scales::comma)
+
+
+ 
